@@ -58,8 +58,12 @@ class ProductivitySystem:
             "epic": 100
         }
         
+        # Find the next available ID
+        existing_ids = [t["id"] for t in self.data["tasks"]]
+        next_id = max(existing_ids) + 1 if existing_ids else 1
+        
         task = {
-            "id": len(self.data["tasks"]) + 1,
+            "id": next_id,
             "title": title,
             "difficulty": difficulty,
             "xp": xp_values.get(difficulty, 25),
@@ -120,14 +124,23 @@ class ProductivitySystem:
         }
     
     def delete_task(self, task_id: int) -> bool:
-        """Delete a task by ID."""
-        initial_length = len(self.data["tasks"])
-        self.data["tasks"] = [t for t in self.data["tasks"] if t["id"] != task_id]
+        """Delete a task by ID. Only pending tasks can be deleted to maintain stat integrity."""
+        task_to_delete = None
+        for t in self.data["tasks"]:
+            if t["id"] == task_id:
+                task_to_delete = t
+                break
         
-        if len(self.data["tasks"]) < initial_length:
-            self._save_data()
-            return True
-        return False
+        if not task_to_delete:
+            return False
+        
+        # Prevent deletion of completed tasks to maintain stat integrity
+        if task_to_delete["completed"]:
+            return False
+        
+        self.data["tasks"] = [t for t in self.data["tasks"] if t["id"] != task_id]
+        self._save_data()
+        return True
 
 
 def print_banner():
@@ -172,12 +185,13 @@ def main():
         print_stats(system)
         print_tasks(system.list_tasks(), "Pending Tasks")
         print("\nUsage:")
-        print("  python productivity.py add <title> [difficulty]  - Add a task")
-        print("  python productivity.py complete <task_id>         - Complete a task")
-        print("  python productivity.py list [--all]               - List tasks")
-        print("  python productivity.py stats                      - Show statistics")
-        print("  python productivity.py delete <task_id>           - Delete a task")
+        print("  python productivity.py add <title> [--difficulty=LEVEL]  - Add a task")
+        print("  python productivity.py complete <task_id>                - Complete a task")
+        print("  python productivity.py list [--all]                      - List tasks")
+        print("  python productivity.py stats                             - Show statistics")
+        print("  python productivity.py delete <task_id>                  - Delete a pending task")
         print("\nDifficulty levels: easy (10 XP), medium (25 XP), hard (50 XP), epic (100 XP)")
+        print("Example: python productivity.py add \"Write documentation\" --difficulty=hard")
         return
     
     command = sys.argv[1]
@@ -187,14 +201,27 @@ def main():
             print("Error: Task title required")
             return
         
-        title = " ".join(sys.argv[2:])
         difficulty = "medium"
+        title_parts = sys.argv[2:]
         
-        # Check if last word is a difficulty level
+        # Check if --difficulty flag is used
+        if any(arg.startswith("--difficulty=") for arg in sys.argv):
+            for i, arg in enumerate(sys.argv):
+                if arg.startswith("--difficulty="):
+                    difficulty = arg.split("=", 1)[1].lower()
+                    title_parts = sys.argv[2:i] + sys.argv[i+1:]
+                    break
+        
+        # Validate difficulty
         difficulty_levels = ["easy", "medium", "hard", "epic"]
-        if sys.argv[-1].lower() in difficulty_levels:
-            difficulty = sys.argv[-1].lower()
-            title = " ".join(sys.argv[2:-1])
+        if difficulty not in difficulty_levels:
+            print(f"Error: Invalid difficulty '{difficulty}'. Use: easy, medium, hard, or epic")
+            return
+        
+        title = " ".join(title_parts)
+        if not title:
+            print("Error: Task title required")
+            return
         
         task = system.add_task(title, difficulty)
         print(f"✨ Task added: [{task['id']}] {task['title']} ({task['difficulty']}, {task['xp']} XP)")
@@ -255,7 +282,12 @@ def main():
             if system.delete_task(task_id):
                 print(f"🗑️  Task {task_id} deleted")
             else:
-                print(f"❌ Task {task_id} not found")
+                # Check if task exists and is completed
+                task = next((t for t in system.data["tasks"] if t["id"] == task_id), None)
+                if task and task["completed"]:
+                    print(f"❌ Cannot delete completed task {task_id} (stat integrity)")
+                else:
+                    print(f"❌ Task {task_id} not found")
         except ValueError:
             print("Error: Task ID must be a number")
     

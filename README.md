@@ -43,13 +43,16 @@ Add tasks with different difficulty levels:
 python productivity.py add "Write project documentation"
 
 # Add an easy task (10 XP)
-python productivity.py add "Reply to emails" easy
+python productivity.py add "Reply to emails" --difficulty=easy
 
 # Add a hard task (50 XP)
-python productivity.py add "Refactor authentication module" hard
+python productivity.py add "Refactor authentication module" --difficulty=hard
 
 # Add an epic task (100 XP)
-python productivity.py add "Launch new feature" epic
+python productivity.py add "Launch new feature" --difficulty=epic
+
+# Example with title containing difficulty words
+python productivity.py add "This task is easy to understand" --difficulty=hard
 ```
 
 ### Complete a Task
@@ -84,11 +87,13 @@ python productivity.py stats
 
 ### Delete a Task
 
-Remove a task you no longer need:
+Remove a pending task you no longer need:
 
 ```bash
 python productivity.py delete 1
 ```
+
+**Note:** Only pending (incomplete) tasks can be deleted to maintain the integrity of your XP and statistics. Completed tasks are permanent records of your achievements.
 
 ## Difficulty Levels & XP
 
@@ -122,9 +127,9 @@ Your progress is automatically saved to `productivity_data.json` in the same dir
 
 ```bash
 # Start your productivity journey
-python productivity.py add "Learn Python" medium
-python productivity.py add "Exercise for 30 minutes" easy
-python productivity.py add "Build a web app" epic
+python productivity.py add "Learn Python" --difficulty=medium
+python productivity.py add "Exercise for 30 minutes" --difficulty=easy
+python productivity.py add "Build a web app" --difficulty=epic
 
 # Check your tasks
 python productivity.py
