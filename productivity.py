@@ -22,22 +22,33 @@ class ProductivitySystem:
     def _load_data(self) -> Dict:
         """Load data from JSON file or create new data structure."""
         if os.path.exists(self.data_file):
-            with open(self.data_file, 'r') as f:
-                return json.load(f)
+            try:
+                with open(self.data_file, 'r') as f:
+                    return json.load(f)
+            except (json.JSONDecodeError, IOError) as e:
+                print(f"Warning: Could not load data file ({e}). Starting with fresh data.")
+                return self._get_default_data()
         else:
-            return {
-                "user": {
-                    "level": 1,
-                    "xp": 0,
-                    "total_tasks_completed": 0
-                },
-                "tasks": []
-            }
+            return self._get_default_data()
+    
+    def _get_default_data(self) -> Dict:
+        """Return default data structure."""
+        return {
+            "user": {
+                "level": 1,
+                "xp": 0,
+                "total_tasks_completed": 0
+            },
+            "tasks": []
+        }
     
     def _save_data(self):
         """Save data to JSON file."""
-        with open(self.data_file, 'w') as f:
-            json.dump(self.data, f, indent=2)
+        try:
+            with open(self.data_file, 'w') as f:
+                json.dump(self.data, f, indent=2)
+        except IOError as e:
+            print(f"Error: Could not save data ({e}). Your changes may not be persisted.")
     
     def _calculate_level(self, xp: int) -> int:
         """Calculate level based on XP (100 XP per level)."""
@@ -125,11 +136,7 @@ class ProductivitySystem:
     
     def delete_task(self, task_id: int) -> bool:
         """Delete a task by ID. Only pending tasks can be deleted to maintain stat integrity."""
-        task_to_delete = None
-        for t in self.data["tasks"]:
-            if t["id"] == task_id:
-                task_to_delete = t
-                break
+        task_to_delete = next((t for t in self.data["tasks"] if t["id"] == task_id), None)
         
         if not task_to_delete:
             return False
